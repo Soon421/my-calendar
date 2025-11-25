@@ -11,7 +11,6 @@ const defaultCategories = [
 const defaultReminderOptions = [
   { id: 'day', label: '하루 전', minutes: 1440 },
   { id: '6hours', label: '6시간 전', minutes: 360 },
-  { id: '5hours', label: '5시간 전', minutes: 300 },
   { id: '1hour', label: '1시간 전', minutes: 60 },
   { id: '10min', label: '10분 전', minutes: 10 },
 ];
@@ -44,7 +43,11 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [events, setEvents] = useState(() => storage.get('calendar-events', []));
   const [categories, setCategories] = useState(() => storage.get('calendar-categories', defaultCategories));
-  const [reminderOptions, setReminderOptions] = useState(() => storage.get('calendar-reminders', defaultReminderOptions));
+  const [reminderOptions, setReminderOptions] = useState(() => {
+    const options = storage.get('calendar-reminders', defaultReminderOptions);
+    // 5시간 전 옵션 제거 마이그레이션
+    return options.filter(opt => opt.id !== '5hours');
+  });
   const [showEventModal, setShowEventModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -52,6 +55,7 @@ export default function App() {
   const [notifications, setNotifications] = useState([]);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [draggedEvent, setDraggedEvent] = useState(null); // 드래그 중인 일정
 
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -207,6 +211,36 @@ export default function App() {
   const displayDate = selectedDate || formatTodayDate();
   const displayEvents = events.filter(e => e.date === displayDate);
 
+  // Drag and Drop Handlers
+  const handleDragStart = (e, event) => {
+    setDraggedEvent(event);
+    e.dataTransfer.effectAllowed = 'move';
+    // 드래그 시 반투명 효과
+    e.target.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e) => {
+    setDraggedEvent(null);
+    e.target.style.opacity = '1';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, day) => {
+    e.preventDefault();
+    if (!draggedEvent) return;
+
+    const newDate = formatDate(day);
+    if (draggedEvent.date !== newDate) {
+      const updatedEvent = { ...draggedEvent, date: newDate };
+      setEvents(prev => prev.map(ev => ev.id === draggedEvent.id ? updatedEvent : ev));
+    }
+    setDraggedEvent(null);
+  };
+
   return (
     <div className="min-h-screen bg-white pb-20 md:pb-8">
       {/* 스타일 */}
@@ -355,12 +389,15 @@ export default function App() {
                 const dayOfWeek = (startingDay + i) % 7;
 
                 return (
-                  <button
+                  <div
                     key={day}
                     onClick={() => handleDateClick(day)}
-                    className={`day-cell min-h-[100px] md:min-h-[140px] rounded-xl flex flex-col items-center relative p-1 md:p-2
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, day)}
+                    className={`day-cell min-h-[100px] md:min-h-[140px] rounded-xl flex flex-col items-center relative p-1 md:p-2 cursor-pointer
                       ${isToday(day) ? 'bg-indigo-50' : 'hover:bg-slate-50'}
                       ${isSelected && !isToday(day) ? 'ring-2 ring-indigo-200' : ''}
+                      ${draggedEvent && draggedEvent.date !== formatDate(day) ? 'hover:bg-indigo-50/50 transition-colors' : ''}
                     `}
                   >
                     <span className={`text-sm md:text-lg font-medium mb-1 md:mb-2 ${isToday(day) ? 'text-indigo-600' :
@@ -384,10 +421,17 @@ export default function App() {
                             return (
                               <div
                                 key={event.id}
-                                className="w-full h-4 md:h-6 rounded px-1.5 flex items-center overflow-hidden"
+                                draggable="true"
+                                onDragStart={(e) => handleDragStart(e, event)}
+                                onDragEnd={handleDragEnd}
+                                onClick={(e) => {
+                                  e.stopPropagation(); // 부모 클릭 방지
+                                  handleEditEvent(event);
+                                }}
+                                className="w-full h-4 md:h-6 rounded px-1.5 flex items-center overflow-hidden cursor-move hover:opacity-80 transition-opacity"
                                 style={{ backgroundColor: category?.color || '#BFDBFE' }}
                               >
-                                <span className="text-[10px] md:text-xs text-slate-700 truncate w-full font-medium leading-none">
+                                <span className="text-[10px] md:text-xs text-slate-700 truncate w-full font-medium leading-none pointer-events-none">
                                   {event.title}
                                 </span>
                               </div>
@@ -400,7 +444,7 @@ export default function App() {
                         )}
                       </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
