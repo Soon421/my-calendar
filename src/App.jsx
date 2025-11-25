@@ -47,9 +47,9 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [sentReminders, setSentReminders] = useState(() => storage.get('sent-reminders', []));
-  
+
   const today = new Date();
-  
+
   const [newEvent, setNewEvent] = useState({
     title: '',
     date: '',
@@ -58,7 +58,7 @@ export default function App() {
     reminders: ['1hour'],
     description: ''
   });
-  
+
   const [newCategory, setNewCategory] = useState({
     name: '',
     color: '#6366F1'
@@ -127,25 +127,25 @@ export default function App() {
   useEffect(() => {
     const checkReminders = () => {
       const now = new Date();
-      
+
       events.forEach(event => {
         if (!event.time || !event.date) return;
-        
+
         const eventTime = new Date(`${event.date}T${event.time}`);
         if (isNaN(eventTime.getTime())) return;
-        
+
         event.reminders.forEach(reminderId => {
           const reminder = reminderOptions.find(r => r.id === reminderId);
           if (!reminder) return;
-          
+
           const reminderTime = new Date(eventTime.getTime() - reminder.minutes * 60000);
           const reminderKey = `${event.id}-${reminderId}`;
-          
+
           // 알림 시간이 되었고, 아직 보내지 않았으면
           const diffMinutes = (reminderTime - now) / 60000;
           if (diffMinutes <= 0 && diffMinutes > -1 && !sentReminders.includes(reminderKey)) {
             const category = categories.find(c => c.id === event.categoryId);
-            
+
             // 인앱 알림
             setNotifications(prev => [...prev, {
               id: Date.now(),
@@ -156,14 +156,14 @@ export default function App() {
               color: category?.color || '#6366F1',
               time: now
             }]);
-            
+
             // 시스템 알림
             sendSystemNotification(
               `📅 ${event.title}`,
               `${reminder.label}에 일정이 있습니다!\n${event.date} ${event.time}`,
               reminderKey
             );
-            
+
             // 보낸 알림 기록
             setSentReminders(prev => [...prev, reminderKey]);
           }
@@ -233,17 +233,17 @@ export default function App() {
   };
 
   const handleAddEvent = () => {
-    if (!newEvent.title || !newEvent.date || !newEvent.time) return;
-    
+    if (!newEvent.title || !newEvent.date) return;
+
     if (editingEvent) {
-      setEvents(prev => prev.map(e => 
+      setEvents(prev => prev.map(e =>
         e.id === editingEvent.id ? { ...newEvent, id: editingEvent.id } : e
       ));
       setEditingEvent(null);
     } else {
       setEvents(prev => [...prev, { ...newEvent, id: Date.now() }]);
     }
-    
+
     setNewEvent({
       title: '',
       date: selectedDate || '',
@@ -275,7 +275,7 @@ export default function App() {
   const handleDeleteCategory = (categoryId) => {
     if (categories.length <= 1) return;
     setCategories(prev => prev.filter(c => c.id !== categoryId));
-    setEvents(prev => prev.map(e => 
+    setEvents(prev => prev.map(e =>
       e.categoryId === categoryId ? { ...e, categoryId: categories[0].id } : e
     ));
   };
@@ -295,15 +295,22 @@ export default function App() {
 
   const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
   const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-  
+
   const isToday = (day) => {
-    return day === today.getDate() && 
-           currentDate.getMonth() === today.getMonth() && 
-           currentDate.getFullYear() === today.getFullYear();
+    return day === today.getDate() &&
+      currentDate.getMonth() === today.getMonth() &&
+      currentDate.getFullYear() === today.getFullYear();
   };
 
   const displayDate = selectedDate || formatTodayDate();
-  const displayEvents = events.filter(e => e.date === displayDate).sort((a, b) => a.time.localeCompare(b.time));
+  const displayEvents = events
+    .filter(e => e.date === displayDate)
+    .sort((a, b) => {
+      if (!a.time && !b.time) return 0;
+      if (!a.time) return -1;
+      if (!b.time) return 1;
+      return a.time.localeCompare(b.time);
+    });
 
   return (
     <div className="min-h-screen p-4 pb-8">
@@ -371,8 +378,8 @@ export default function App() {
       {/* 인앱 알림 */}
       <div className="fixed top-4 right-4 left-4 z-50 space-y-2 pointer-events-none">
         {notifications.slice(-3).map(notif => (
-          <div 
-            key={notif.id} 
+          <div
+            key={notif.id}
             className="notification-slide glass rounded-2xl p-4 flex items-center gap-3 pointer-events-auto"
             style={{ borderLeft: `4px solid ${notif.color}` }}
           >
@@ -381,8 +388,8 @@ export default function App() {
               <p className="font-medium truncate">{notif.title}</p>
               <p className="text-sm text-slate-400 truncate">{notif.message}</p>
             </div>
-            <button 
-              onClick={() => dismissNotification(notif.id)} 
+            <button
+              onClick={() => dismissNotification(notif.id)}
               className="text-slate-400 hover:text-white p-1 flex-shrink-0"
             >
               <X size={18} />
@@ -400,13 +407,13 @@ export default function App() {
               <p className="font-medium">앱 설치하기</p>
               <p className="text-sm text-slate-400">홈 화면에 추가하여 더 빠르게 사용하세요</p>
             </div>
-            <button 
+            <button
               onClick={handleInstall}
               className="px-4 py-2 bg-indigo-500 rounded-xl text-sm font-medium"
             >
               설치
             </button>
-            <button 
+            <button
               onClick={() => setShowInstallBanner(false)}
               className="p-1 text-slate-400"
             >
@@ -427,7 +434,7 @@ export default function App() {
           </div>
           <div className="flex gap-2">
             {notificationPermission !== 'granted' && (
-              <button 
+              <button
                 onClick={requestNotificationPermission}
                 className="glass glass-hover rounded-xl p-3"
                 title="알림 허용"
@@ -435,13 +442,13 @@ export default function App() {
                 <Bell size={18} className="text-yellow-400" />
               </button>
             )}
-            <button 
+            <button
               onClick={() => setShowCategoryModal(true)}
               className="glass glass-hover rounded-xl p-3"
             >
               <Tag size={18} />
             </button>
-            <button 
+            <button
               onClick={() => {
                 setEditingEvent(null);
                 setNewEvent({
@@ -479,11 +486,10 @@ export default function App() {
           {/* 요일 헤더 */}
           <div className="grid grid-cols-7 gap-1 mb-2">
             {dayNames.map((day, i) => (
-              <div 
-                key={day} 
-                className={`text-center py-2 text-xs font-medium ${
-                  i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'
-                }`}
+              <div
+                key={day}
+                className={`text-center py-2 text-xs font-medium ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'
+                  }`}
               >
                 {day}
               </div>
@@ -500,7 +506,7 @@ export default function App() {
               const dayEvents = getEventsForDate(day);
               const isSelected = selectedDate === formatDate(day);
               const dayOfWeek = (startingDay + i) % 7;
-              
+
               return (
                 <button
                   key={day}
@@ -510,25 +516,41 @@ export default function App() {
                     ${isSelected && !isToday(day) ? 'ring-2 ring-indigo-400' : ''}
                   `}
                 >
-                  <span className={`text-sm font-medium ${
-                    isToday(day) ? 'text-white' : 
-                    dayOfWeek === 0 ? 'text-red-400' : 
-                    dayOfWeek === 6 ? 'text-blue-400' : ''
-                  }`}>
+                  <span className={`text-sm font-medium ${isToday(day) ? 'text-white' :
+                    dayOfWeek === 0 ? 'text-red-400' :
+                      dayOfWeek === 6 ? 'text-blue-400' : ''
+                    }`}>
                     {day}
                   </span>
                   {dayEvents.length > 0 && (
-                    <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center">
-                      {dayEvents.slice(0, 3).map(event => {
-                        const category = categories.find(c => c.id === event.categoryId);
-                        return (
-                          <div 
-                            key={event.id}
-                            className="event-dot w-1.5 h-1.5 rounded-full"
-                            style={{ backgroundColor: category?.color || '#6366F1' }}
-                          />
-                        );
-                      })}
+                    <div className="w-full px-1 mt-1 space-y-1">
+                      {dayEvents
+                        .sort((a, b) => {
+                          if (!a.time && !b.time) return 0;
+                          if (!a.time) return -1;
+                          if (!b.time) return 1;
+                          return a.time.localeCompare(b.time);
+                        })
+                        .slice(0, 3)
+                        .map(event => {
+                          const category = categories.find(c => c.id === event.categoryId);
+                          return (
+                            <div
+                              key={event.id}
+                              className="w-full h-4 md:h-5 rounded px-1 flex items-center overflow-hidden"
+                              style={{ backgroundColor: category?.color || '#6366F1' }}
+                            >
+                              <span className="text-[10px] text-white truncate w-full font-medium leading-none">
+                                {event.title}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      {dayEvents.length > 3 && (
+                        <div className="text-[10px] text-slate-400 text-center leading-none">
+                          +{dayEvents.length - 3}개
+                        </div>
+                      )}
                     </div>
                   )}
                 </button>
@@ -543,12 +565,12 @@ export default function App() {
             <Calendar size={18} className="text-indigo-400" />
             {displayDate} 일정
           </h3>
-          
+
           <div className="space-y-3">
             {displayEvents.map(event => {
               const category = categories.find(c => c.id === event.categoryId);
               return (
-                <div 
+                <div
                   key={event.id}
                   className="glass rounded-xl p-4 border-l-4"
                   style={{ borderLeftColor: category?.color || '#6366F1' }}
@@ -561,7 +583,7 @@ export default function App() {
                         <span>{event.time}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span 
+                        <span
                           className="text-xs px-2 py-0.5 rounded-full"
                           style={{ backgroundColor: `${category?.color}20`, color: category?.color }}
                         >
@@ -579,13 +601,13 @@ export default function App() {
                       )}
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      <button 
+                      <button
                         onClick={() => handleEditEvent(event)}
                         className="p-2 hover:bg-white/10 rounded-lg"
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDeleteEvent(event.id)}
                         className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"
                       >
@@ -600,7 +622,7 @@ export default function App() {
               <div className="text-center py-8 text-slate-500">
                 <Calendar size={36} className="mx-auto mb-3 opacity-50" />
                 <p>일정이 없습니다</p>
-                <button 
+                <button
                   onClick={() => {
                     setEditingEvent(null);
                     setNewEvent({
@@ -625,7 +647,7 @@ export default function App() {
           <div className="mt-6 pt-4 border-t border-white/10">
             <div className="flex flex-wrap gap-2">
               {categories.map(cat => (
-                <span 
+                <span
                   key={cat.id}
                   className="px-3 py-1 rounded-full text-xs"
                   style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
@@ -649,7 +671,7 @@ export default function App() {
                 .map(event => {
                   const category = categories.find(c => c.id === event.categoryId);
                   return (
-                    <div 
+                    <div
                       key={event.id}
                       className="glass glass-hover rounded-xl p-3 flex items-center gap-3"
                       onClick={() => {
@@ -658,7 +680,7 @@ export default function App() {
                         setCurrentDate(new Date(parseInt(year), parseInt(month) - 1));
                       }}
                     >
-                      <div 
+                      <div
                         className="w-2 h-10 rounded-full flex-shrink-0"
                         style={{ backgroundColor: category?.color }}
                       />
@@ -676,11 +698,11 @@ export default function App() {
 
       {/* 일정 추가/수정 모달 */}
       {showEventModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/70 backdrop-filter backdrop-blur-sm flex items-end md:items-center justify-center z-50"
           onClick={() => setShowEventModal(false)}
         >
-          <div 
+          <div
             className="modal-enter glass rounded-t-3xl md:rounded-3xl p-6 w-full md:max-w-md max-h-[85vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
@@ -688,8 +710,8 @@ export default function App() {
               <h3 className="title-font text-xl font-semibold">
                 {editingEvent ? '일정 수정' : '새 일정'}
               </h3>
-              <button 
-                onClick={() => setShowEventModal(false)} 
+              <button
+                onClick={() => setShowEventModal(false)}
                 className="p-2 hover:bg-white/10 rounded-lg"
               >
                 <X size={20} />
@@ -736,11 +758,10 @@ export default function App() {
                     <button
                       key={cat.id}
                       onClick={() => setNewEvent(prev => ({ ...prev, categoryId: cat.id }))}
-                      className={`px-3 py-2 rounded-xl text-sm transition-all ${
-                        newEvent.categoryId === cat.id 
-                          ? 'ring-2 ring-white/50' 
-                          : 'opacity-50'
-                      }`}
+                      className={`px-3 py-2 rounded-xl text-sm transition-all ${newEvent.categoryId === cat.id
+                        ? 'ring-2 ring-white/50'
+                        : 'opacity-50'
+                        }`}
                       style={{ backgroundColor: `${cat.color}30`, color: cat.color }}
                     >
                       {cat.name}
@@ -759,11 +780,10 @@ export default function App() {
                     <button
                       key={option.id}
                       onClick={() => toggleReminder(option.id)}
-                      className={`px-3 py-2.5 rounded-xl text-sm flex items-center justify-between transition-all ${
-                        newEvent.reminders.includes(option.id)
-                          ? 'bg-indigo-500/30 border border-indigo-400'
-                          : 'glass'
-                      }`}
+                      className={`px-3 py-2.5 rounded-xl text-sm flex items-center justify-between transition-all ${newEvent.reminders.includes(option.id)
+                        ? 'bg-indigo-500/30 border border-indigo-400'
+                        : 'glass'
+                        }`}
                     >
                       <span>{option.label}</span>
                       {newEvent.reminders.includes(option.id) && <Check size={16} />}
@@ -785,7 +805,7 @@ export default function App() {
 
               <button
                 onClick={handleAddEvent}
-                disabled={!newEvent.title || !newEvent.date || !newEvent.time}
+                disabled={!newEvent.title || !newEvent.date}
                 className="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium transition-all"
               >
                 {editingEvent ? '수정 완료' : '일정 추가'}
@@ -797,18 +817,18 @@ export default function App() {
 
       {/* 카테고리 관리 모달 */}
       {showCategoryModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/70 backdrop-filter backdrop-blur-sm flex items-end md:items-center justify-center z-50"
           onClick={() => setShowCategoryModal(false)}
         >
-          <div 
+          <div
             className="modal-enter glass rounded-t-3xl md:rounded-3xl p-6 w-full md:max-w-md max-h-[85vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="title-font text-xl font-semibold">카테고리 관리</h3>
-              <button 
-                onClick={() => setShowCategoryModal(false)} 
+              <button
+                onClick={() => setShowCategoryModal(false)}
                 className="p-2 hover:bg-white/10 rounded-lg"
               >
                 <X size={20} />
@@ -820,14 +840,14 @@ export default function App() {
               {categories.map(cat => (
                 <div key={cat.id} className="flex items-center justify-between glass rounded-xl p-3">
                   <div className="flex items-center gap-3">
-                    <div 
+                    <div
                       className="w-4 h-4 rounded-full"
                       style={{ backgroundColor: cat.color }}
                     />
                     <span>{cat.name}</span>
                   </div>
                   {categories.length > 1 && (
-                    <button 
+                    <button
                       onClick={() => handleDeleteCategory(cat.id)}
                       className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"
                     >
@@ -856,9 +876,8 @@ export default function App() {
                       <button
                         key={color}
                         onClick={() => setNewCategory(prev => ({ ...prev, color }))}
-                        className={`w-9 h-9 rounded-full transition-all ${
-                          newCategory.color === color ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110' : ''
-                        }`}
+                        className={`w-9 h-9 rounded-full transition-all ${newCategory.color === color ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110' : ''
+                          }`}
                         style={{ backgroundColor: color }}
                       />
                     ))}
