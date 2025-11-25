@@ -434,7 +434,7 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
                 {displayEvents.map(event => {
                   const category = categories.find(c => c.id === event.categoryId);
                   return (
@@ -492,6 +492,121 @@ export default function App() {
                     <p className="text-lg">일정이 없습니다</p>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* 카테고리 관리 (데스크탑) */}
+            <div className="hidden md:block clean-card rounded-3xl p-6">
+              <h3 className="title-font text-lg font-semibold mb-4 text-slate-900 flex items-center gap-2">
+                <Tag size={20} className="text-indigo-400" />
+                카테고리 관리
+              </h3>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategory.name}
+                    onChange={e => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                    className="flex-1 px-3 py-2 text-sm"
+                    placeholder="새 카테고리"
+                  />
+                  <input
+                    type="color"
+                    value={newCategory.color}
+                    onChange={e => setNewCategory(prev => ({ ...prev, color: e.target.value }))}
+                    className="w-10 h-10 rounded-xl p-1 cursor-pointer bg-white border border-slate-200"
+                  />
+                  <button
+                    onClick={handleAddCategory}
+                    className="px-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl transition-colors"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
+                  {categories.map(cat => (
+                    <div
+                      key={cat.id}
+                      className="flex items-center justify-between p-2 rounded-xl border border-slate-100 bg-slate-50 group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        <span className="text-sm font-medium text-slate-700">{cat.name}</span>
+                      </div>
+                      {categories.length > 1 && (
+                        <button
+                          onClick={() => handleDeleteCategory(cat.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 알림 설정 (데스크탑) */}
+            <div className="hidden md:block clean-card rounded-3xl p-6">
+              <h3 className="title-font text-lg font-semibold mb-4 text-slate-900 flex items-center gap-2">
+                <Bell size={20} className="text-indigo-400" />
+                알림 설정
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      const minutes = 30;
+                      const id = '30min';
+                      if (!reminderOptions.find(o => o.id === id)) {
+                        const newOptions = [...reminderOptions, { id, label: '30분 전', minutes }];
+                        setReminderOptions(newOptions);
+                        storage.set('calendar-reminders', newOptions);
+                      }
+                    }}
+                    className="px-2 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    + 30분
+                  </button>
+                  <button
+                    onClick={() => {
+                      const minutes = 60;
+                      const id = '1hour';
+                      if (!reminderOptions.find(o => o.id === id)) {
+                        const newOptions = [...reminderOptions, { id, label: '1시간 전', minutes }];
+                        setReminderOptions(newOptions);
+                        storage.set('calendar-reminders', newOptions);
+                      }
+                    }}
+                    className="px-2 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    + 1시간
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
+                  {reminderOptions.map(option => (
+                    <div
+                      key={option.id}
+                      className="flex items-center justify-between p-2 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group"
+                    >
+                      <span className="text-sm font-medium text-slate-700">{option.label}</span>
+                      <button
+                        onClick={() => {
+                          const newOptions = reminderOptions.filter(o => o.id !== option.id);
+                          setReminderOptions(newOptions);
+                          storage.set('calendar-reminders', newOptions);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
