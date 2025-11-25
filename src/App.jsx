@@ -77,7 +77,19 @@ export default function App() {
   }, [categories]);
 
   useEffect(() => {
-    storage.set('calendar-reminders', reminderOptions);
+    // Migration: 5hours -> 6hours
+    const migratedOptions = reminderOptions.map(opt =>
+      opt.id === '5hours' ? { id: '6hours', label: '6시간 전', minutes: 360 } : opt
+    );
+    // Remove duplicates if 6hours already exists
+    const uniqueOptions = migratedOptions.filter((opt, index, self) =>
+      index === self.findIndex((t) => t.id === opt.id)
+    );
+
+    if (JSON.stringify(uniqueOptions) !== JSON.stringify(reminderOptions)) {
+      setReminderOptions(uniqueOptions);
+    }
+    storage.set('calendar-reminders', uniqueOptions);
   }, [reminderOptions]);
 
   useEffect(() => {
@@ -383,11 +395,11 @@ export default function App() {
       `}</style>
 
       {/* 인앱 알림 */}
-      <div className="fixed top-4 right-4 left-4 z-50 space-y-2 pointer-events-none">
+      <div className="fixed top-4 right-4 left-4 z-[100] space-y-2 pointer-events-none">
         {notifications.slice(-3).map(notif => (
           <div
             key={notif.id}
-            className="notification-slide glass rounded-2xl p-4 flex items-center gap-3 pointer-events-auto"
+            className="notification-slide glass rounded-2xl p-4 flex items-center gap-3 pointer-events-auto shadow-lg"
             style={{ borderLeft: `4px solid ${notif.color}` }}
           >
             <BellRing size={20} style={{ color: notif.color }} className="flex-shrink-0" />
@@ -430,9 +442,9 @@ export default function App() {
         </div>
       )}
 
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-7xl mx-auto w-full">
         {/* 헤더 */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 px-2">
           <div>
             <h1 className="title-font text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
               My Calendar
@@ -473,232 +485,237 @@ export default function App() {
           </div>
         </div>
 
-        {/* 캘린더 */}
-        <div className="glass rounded-3xl p-4 md:p-6 mb-6">
-          {/* 월 네비게이션 */}
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={prevMonth} className="glass glass-hover p-2.5 rounded-xl">
-              <ChevronLeft size={20} />
-            </button>
-            <h2 className="title-font text-lg md:text-xl font-semibold">
-              {currentDate.getFullYear()}년 {monthNames[currentDate.getMonth()]}
-            </h2>
-            <button onClick={nextMonth} className="glass glass-hover p-2.5 rounded-xl">
-              <ChevronRight size={20} />
-            </button>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 캘린더 (왼쪽/상단) */}
+          <div className="lg:col-span-2 glass rounded-3xl p-4 md:p-6 h-fit">
+            {/* 월 네비게이션 */}
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={prevMonth} className="glass glass-hover p-2.5 rounded-xl">
+                <ChevronLeft size={20} />
+              </button>
+              <h2 className="title-font text-xl md:text-2xl font-semibold">
+                {currentDate.getFullYear()}년 {monthNames[currentDate.getMonth()]}
+              </h2>
+              <button onClick={nextMonth} className="glass glass-hover p-2.5 rounded-xl">
+                <ChevronRight size={20} />
+              </button>
+            </div>
 
-          {/* 요일 헤더 */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {dayNames.map((day, i) => (
-              <div
-                key={day}
-                className={`text-center py-2 text-xs font-medium ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'
-                  }`}
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* 캘린더 그리드 */}
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: startingDay }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[100px] md:min-h-[120px]" />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dayEvents = getEventsForDate(day);
-              const isSelected = selectedDate === formatDate(day);
-              const dayOfWeek = (startingDay + i) % 7;
-
-              return (
-                <button
-                  key={day}
-                  onClick={() => handleDateClick(day)}
-                  className={`day-cell min-h-[100px] md:min-h-[120px] rounded-xl flex flex-col items-center relative p-1 border border-white/5
-                    ${isToday(day) ? 'bg-gradient-to-br from-indigo-500 to-purple-500 glow' : 'glass glass-hover'}
-                    ${isSelected && !isToday(day) ? 'ring-2 ring-indigo-400' : ''}
-                  `}
-                >
-                  <span className={`text-sm md:text-base font-medium mb-1 ${isToday(day) ? 'text-white' :
-                    dayOfWeek === 0 ? 'text-red-400' :
-                      dayOfWeek === 6 ? 'text-blue-400' : ''
-                    }`}>
-                    {day}
-                  </span>
-                  {dayEvents.length > 0 && (
-                    <div className="w-full px-1 mt-1 space-y-1">
-                      {dayEvents
-                        .sort((a, b) => {
-                          if (!a.time && !b.time) return 0;
-                          if (!a.time) return -1;
-                          if (!b.time) return 1;
-                          return a.time.localeCompare(b.time);
-                        })
-                        .slice(0, 3)
-                        .map(event => {
-                          const category = categories.find(c => c.id === event.categoryId);
-                          return (
-                            <div
-                              key={event.id}
-                              className="w-full h-4 md:h-5 rounded px-1 flex items-center overflow-hidden"
-                              style={{ backgroundColor: category?.color || '#6366F1' }}
-                            >
-                              <span className="text-[10px] text-white truncate w-full font-medium leading-none">
-                                {event.title}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      {dayEvents.length > 3 && (
-                        <div className="text-[10px] text-slate-400 text-center leading-none">
-                          +{dayEvents.length - 3}개
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 선택된 날짜의 일정 */}
-        <div className="glass rounded-3xl p-4 md:p-6">
-          <h3 className="title-font text-lg font-semibold mb-4 flex items-center gap-2">
-            <Calendar size={18} className="text-indigo-400" />
-            {displayDate} 일정
-          </h3>
-
-          <div className="space-y-3">
-            {displayEvents.map(event => {
-              const category = categories.find(c => c.id === event.categoryId);
-              return (
+            {/* 요일 헤더 */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {dayNames.map((day, i) => (
                 <div
-                  key={event.id}
-                  className="glass rounded-xl p-4 border-l-4"
-                  style={{ borderLeftColor: category?.color || '#6366F1' }}
+                  key={day}
+                  className={`text-center py-3 text-sm font-medium ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'
+                    }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">{event.title}</h4>
-                      <div className="flex items-center gap-2 mt-1 text-sm text-slate-400">
-                        <Clock size={14} />
-                        <span>{event.time}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: `${category?.color}20`, color: category?.color }}
-                        >
-                          {category?.name}
-                        </span>
-                        {event.reminders.length > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-slate-400">
-                            <Bell size={12} />
-                            {event.reminders.length}개 알림
-                          </span>
-                        )}
-                      </div>
-                      {event.description && (
-                        <p className="text-sm text-slate-400 mt-2 line-clamp-2">{event.description}</p>
-                      )}
-                    </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => handleEditEvent(event)}
-                        className="p-2 hover:bg-white/10 rounded-lg"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEvent(event.id)}
-                        className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
+                  {day}
                 </div>
-              );
-            })}
-            {displayEvents.length === 0 && (
-              <div className="text-center py-8 text-slate-500">
-                <Calendar size={36} className="mx-auto mb-3 opacity-50" />
-                <p>일정이 없습니다</p>
-                <button
-                  onClick={() => {
-                    setEditingEvent(null);
-                    setNewEvent({
-                      title: '',
-                      date: displayDate,
-                      time: '',
-                      categoryId: categories[0]?.id || 1,
-                      reminders: ['1hour'],
-                      description: ''
-                    });
-                    setShowEventModal(true);
-                  }}
-                  className="mt-3 text-indigo-400 text-sm"
-                >
-                  + 일정 추가하기
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* 카테고리 미리보기 */}
-          <div className="mt-6 pt-4 border-t border-white/10">
-            <div className="flex flex-wrap gap-2">
-              {categories.map(cat => (
-                <span
-                  key={cat.id}
-                  className="px-3 py-1 rounded-full text-xs"
-                  style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
-                >
-                  {cat.name}
-                </span>
               ))}
             </div>
-          </div>
-        </div>
 
-        {/* 다가오는 일정 */}
-        {events.filter(e => new Date(`${e.date}T${e.time}`) >= new Date()).length > 0 && (
-          <div className="mt-6 glass rounded-3xl p-4 md:p-6">
-            <h3 className="title-font text-lg font-semibold mb-4">다가오는 일정</h3>
-            <div className="space-y-2">
-              {events
-                .filter(e => new Date(`${e.date}T${e.time}`) >= new Date())
-                .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`))
-                .slice(0, 5)
-                .map(event => {
+            {/* 캘린더 그리드 */}
+            <div className="grid grid-cols-7 gap-1 md:gap-2">
+              {Array.from({ length: startingDay }).map((_, i) => (
+                <div key={`empty-${i}`} className="min-h-[100px] md:min-h-[140px]" />
+              ))}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dayEvents = getEventsForDate(day);
+                const isSelected = selectedDate === formatDate(day);
+                const dayOfWeek = (startingDay + i) % 7;
+
+                return (
+                  <button
+                    key={day}
+                    onClick={() => handleDateClick(day)}
+                    className={`day-cell min-h-[100px] md:min-h-[140px] rounded-xl flex flex-col items-center relative p-1 md:p-2 border border-white/5
+                      ${isToday(day) ? 'bg-gradient-to-br from-indigo-500 to-purple-500 glow' : 'glass glass-hover'}
+                      ${isSelected && !isToday(day) ? 'ring-2 ring-indigo-400' : ''}
+                    `}
+                  >
+                    <span className={`text-sm md:text-lg font-medium mb-1 md:mb-2 ${isToday(day) ? 'text-white' :
+                      dayOfWeek === 0 ? 'text-red-400' :
+                        dayOfWeek === 6 ? 'text-blue-400' : ''
+                      }`}>
+                      {day}
+                    </span>
+                    {dayEvents.length > 0 && (
+                      <div className="w-full space-y-1">
+                        {dayEvents
+                          .sort((a, b) => {
+                            if (!a.time && !b.time) return 0;
+                            if (!a.time) return -1;
+                            if (!b.time) return 1;
+                            return a.time.localeCompare(b.time);
+                          })
+                          .slice(0, 4)
+                          .map(event => {
+                            const category = categories.find(c => c.id === event.categoryId);
+                            return (
+                              <div
+                                key={event.id}
+                                className="w-full h-4 md:h-6 rounded px-1.5 flex items-center overflow-hidden"
+                                style={{ backgroundColor: category?.color || '#6366F1' }}
+                              >
+                                <span className="text-[10px] md:text-xs text-white truncate w-full font-medium leading-none">
+                                  {event.title}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        {dayEvents.length > 4 && (
+                          <div className="text-[10px] md:text-xs text-slate-400 text-center leading-none pt-1">
+                            +{dayEvents.length - 4}개
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 사이드바 (오른쪽/하단) */}
+          <div className="space-y-6">
+            {/* 선택된 날짜의 일정 */}
+            <div className="glass rounded-3xl p-4 md:p-6 h-fit sticky top-6">
+              <h3 className="title-font text-xl font-semibold mb-6 flex items-center gap-2">
+                <Calendar size={20} className="text-indigo-400" />
+                {displayDate}
+              </h3>
+
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                {displayEvents.map(event => {
                   const category = categories.find(c => c.id === event.categoryId);
                   return (
                     <div
                       key={event.id}
-                      className="glass glass-hover rounded-xl p-3 flex items-center gap-3"
-                      onClick={() => {
-                        setSelectedDate(event.date);
-                        const [year, month] = event.date.split('-');
-                        setCurrentDate(new Date(parseInt(year), parseInt(month) - 1));
-                      }}
+                      className="glass rounded-xl p-4 border-l-4 hover:bg-white/5 transition-colors group"
+                      style={{ borderLeftColor: category?.color || '#6366F1' }}
                     >
-                      <div
-                        className="w-2 h-10 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: category?.color }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate">{event.title}</h4>
-                        <p className="text-sm text-slate-400">{event.date} {event.time}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium truncate text-lg">{event.title}</h4>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-slate-400">
+                            <Clock size={14} />
+                            <span>{event.time || '하루 종일'}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-3 flex-wrap">
+                            <span
+                              className="text-xs px-2.5 py-1 rounded-full font-medium"
+                              style={{ backgroundColor: `${category?.color}20`, color: category?.color }}
+                            >
+                              {category?.name}
+                            </span>
+                            {event.reminders.length > 0 && (
+                              <span className="flex items-center gap-1 text-xs text-slate-400">
+                                <Bell size={12} />
+                                {event.reminders.length}개
+                              </span>
+                            )}
+                          </div>
+                          {event.description && (
+                            <p className="text-sm text-slate-400 mt-3 line-clamp-2 leading-relaxed">{event.description}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleEditEvent(event)}
+                            className="p-2 hover:bg-white/10 rounded-lg"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEvent(event.id)}
+                            className="p-2 hover:bg-red-500/20 rounded-lg text-red-400"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
+                {displayEvents.length === 0 && (
+                  <div className="text-center py-12 text-slate-500">
+                    <Calendar size={48} className="mx-auto mb-4 opacity-30" />
+                    <p className="text-lg">일정이 없습니다</p>
+                    <button
+                      onClick={() => {
+                        setEditingEvent(null);
+                        setNewEvent({
+                          title: '',
+                          date: displayDate,
+                          time: '',
+                          categoryId: categories[0]?.id || 1,
+                          reminders: [],
+                          description: ''
+                        });
+                        setShowEventModal(true);
+                      }}
+                      className="mt-4 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-indigo-400 text-sm transition-colors"
+                    >
+                      + 일정 추가하기
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 카테고리 미리보기 */}
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <div className="flex flex-wrap gap-2">
+                  {categories.map(cat => (
+                    <span
+                      key={cat.id}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity"
+                      style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
+                    >
+                      {cat.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
+
+            {/* 다가오는 일정 */}
+            {events.filter(e => new Date(`${e.date}T${e.time}`) >= new Date()).length > 0 && (
+              <div className="glass rounded-3xl p-4 md:p-6">
+                <h3 className="title-font text-lg font-semibold mb-4">다가오는 일정</h3>
+                <div className="space-y-2">
+                  {events
+                    .filter(e => new Date(`${e.date}T${e.time}`) >= new Date())
+                    .sort((a, b) => new Date(`${a.date}T${b.time}`) - new Date(`${b.date}T${b.time}`))
+                    .slice(0, 3)
+                    .map(event => {
+                      const category = categories.find(c => c.id === event.categoryId);
+                      return (
+                        <div
+                          key={event.id}
+                          className="glass glass-hover rounded-xl p-3 flex items-center gap-3 cursor-pointer"
+                          onClick={() => {
+                            setSelectedDate(event.date);
+                            const [year, month] = event.date.split('-');
+                            setCurrentDate(new Date(parseInt(year), parseInt(month) - 1));
+                          }}
+                        >
+                          <div
+                            className="w-1.5 h-8 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: category?.color }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium truncate">{event.title}</h4>
+                            <p className="text-xs text-slate-400">{event.date} {event.time || '하루 종일'}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* 일정 추가/수정 모달 */}
