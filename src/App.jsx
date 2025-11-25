@@ -57,7 +57,91 @@ export default function App() {
   const [touchDragEvent, setTouchDragEvent] = useState(null);
   const [touchGhostPos, setTouchGhostPos] = useState({ x: 0, y: 0 });
 
-  // ... (Persistence and Effects remain same)
+  const [notifications, setNotifications] = useState([]);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [draggedEvent, setDraggedEvent] = useState(null); // 드래그 중인 일정
+
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    date: '',
+    time: '',
+    categoryId: 1,
+    reminders: [],
+    description: ''
+  });
+  const [newCategory, setNewCategory] = useState({ name: '', color: '#BFDBFE' });
+
+  // Persistence
+  useEffect(() => { storage.set('calendar-events', events); }, [events]);
+  useEffect(() => { storage.set('calendar-categories', categories); }, [categories]);
+  useEffect(() => { storage.set('calendar-reminders', reminderOptions); }, [reminderOptions]);
+
+  // Notifications
+  useEffect(() => {
+    if ('Notification' in window) {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Check Reminders
+  useEffect(() => {
+    const checkReminders = () => {
+      const now = new Date();
+      events.forEach(event => {
+        if (!event.reminders) return;
+        event.reminders.forEach(reminderId => {
+          const option = reminderOptions.find(o => o.id === reminderId);
+          if (!option) return;
+
+          const eventTime = new Date(`${event.date}T${event.time || '00:00'}`);
+          const diff = eventTime - now;
+          const minutesDiff = Math.floor(diff / 1000 / 60);
+
+          if (minutesDiff === option.minutes) {
+            const notifId = Date.now();
+            // Avoid duplicate notifications (simple check)
+            setNotifications(prev => {
+              if (prev.some(n => n.title === event.title && n.message === option.label + ' 알림')) return prev;
+              if (Notification.permission === 'granted') {
+                new Notification(event.title, { body: option.label + ' 알림' });
+              }
+              return [...prev, {
+                id: notifId,
+                title: event.title,
+                message: option.label + ' 알림',
+                color: categories.find(c => c.id === event.categoryId)?.color || '#BFDBFE'
+              }];
+            });
+          }
+        });
+      });
+    };
+
+    const interval = setInterval(checkReminders, 60000);
+    return () => clearInterval(interval);
+  }, [events, reminderOptions, categories]);
+
+  // PWA Install
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBanner(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+      setShowInstallBanner(false);
+    }
+  };
 
   // Custom Reminder Logic
   const handleAddCustomReminder = () => {
@@ -157,7 +241,78 @@ export default function App() {
     }
   };
 
-  // ... (Helpers remain same)
+  // Helpers
+  const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const getStartingDay = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+
+  const daysInMonth = getDaysInMonth(currentDate);
+  const startingDay = getStartingDay(currentDate);
+  const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+  const formatDate = (day) => {
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const d = String(day).padStart(2, '0');
+    return `${year}-${month}-${d}`;
+  };
+
+  const formatTodayDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+
+  const isToday = (day) => formatDate(day) === formatTodayDate();
+  const getEventsForDate = (day) => {
+    const dateStr = formatDate(day);
+    return events.filter(e => e.date === dateStr);
+  };
+
+  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+  const handleDateClick = (day) => setSelectedDate(formatDate(day));
+
+  const handleAddEvent = () => {
+    if (!newEvent.title || !newEvent.date) return;
+    if (editingEvent) {
+      setEvents(events.map(e => e.id === editingEvent.id ? { ...newEvent, id: editingEvent.id } : e));
+      setEditingEvent(null);
+    } else {
+      setEvents([...events, { ...newEvent, id: Date.now() }]);
+    }
+    setShowEventModal(false);
+    setNewEvent({ title: '', date: selectedDate || formatTodayDate(), time: '', categoryId: categories[0]?.id || 1, reminders: [], description: '' });
+  };
+
+  const handleDeleteEvent = (id) => setEvents(events.filter(e => e.id !== id));
+
+  const handleEditEvent = (event) => {
+    setEditingEvent(event);
+    setNewEvent(event);
+    setShowEventModal(true);
+  };
+
+  const handleAddCategory = () => {
+    if (!newCategory.name) return;
+    setCategories([...categories, { ...newCategory, id: Date.now() }]);
+    setNewCategory({ name: '', color: '#BFDBFE' });
+  };
+
+  const handleDeleteCategory = (id) => setCategories(categories.filter(c => c.id !== id));
+
+  const toggleReminder = (id) => {
+    setNewEvent(prev => ({
+      ...prev,
+      reminders: prev.reminders.includes(id)
+        ? prev.reminders.filter(r => r !== id)
+        : [...prev.reminders, id]
+    }));
+  };
+
+  const dismissNotification = (id) => setNotifications(prev => prev.filter(n => n.id !== id));
+
+  const displayDate = selectedDate || formatTodayDate();
+  const displayEvents = events.filter(e => e.date === displayDate);
 
   return (
     <div className="min-h-screen bg-white pb-20 md:pb-8">
