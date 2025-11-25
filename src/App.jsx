@@ -103,9 +103,24 @@ export default function App() {
             // Avoid duplicate notifications (simple check)
             setNotifications(prev => {
               if (prev.some(n => n.title === event.title && n.message === option.label + ' 알림')) return prev;
+
+              // Service Worker Notification (Mobile/Desktop PWA Support)
               if (Notification.permission === 'granted') {
-                new Notification(event.title, { body: option.label + ' 알림' });
+                if (navigator.serviceWorker) {
+                  navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification(event.title, {
+                      body: option.label + ' 알림',
+                      icon: '/pwa-192x192.png', // Make sure this icon exists
+                      badge: '/pwa-192x192.png',
+                      vibrate: [100, 50, 100],
+                      data: { url: '/' }
+                    });
+                  });
+                } else {
+                  new Notification(event.title, { body: option.label + ' 알림' });
+                }
               }
+
               return [...prev, {
                 id: notifId,
                 title: event.title,
@@ -914,9 +929,17 @@ export default function App() {
             <div className="space-y-6">
               <div className="p-4 bg-indigo-50 rounded-xl">
                 <h4 className="font-medium text-indigo-900 mb-2">기본 알림 시간</h4>
-                <p className="text-sm text-indigo-700">
+                <p className="text-sm text-indigo-700 mb-3">
                   새 일정을 만들 때 기본으로 선택될 알림 시간을 설정합니다.
                 </p>
+                {Notification.permission !== 'granted' && (
+                  <button
+                    onClick={() => Notification.requestPermission()}
+                    className="w-full py-2 bg-indigo-200 text-indigo-800 rounded-lg text-sm font-medium hover:bg-indigo-300 transition-colors"
+                  >
+                    알림 권한 허용하기
+                  </button>
+                )}
               </div>
 
               <div className="space-y-2">
