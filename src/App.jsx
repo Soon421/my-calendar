@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, Bell, Tag, Clock, Calendar, Check, Trash2, Edit2, Download, BellRing } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Bell, Tag, Clock, Calendar, Check, Trash2, Edit2, Download } from 'lucide-react';
 
 const defaultCategories = [
   { id: 1, name: '업무', color: '#BFDBFE' }, // Pastel Blue
@@ -16,7 +16,28 @@ const defaultReminderOptions = [
   { id: '10min', label: '10분 전', minutes: 10 },
 ];
 
-// ... (storage helper remains same)
+// localStorage 헬퍼 함수
+const storage = {
+  get: (key, defaultValue) => {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return defaultValue;
+      const parsed = JSON.parse(item);
+      // 배열이어야 하는데 아닌 경우 처리
+      if (Array.isArray(defaultValue) && !Array.isArray(parsed)) return defaultValue;
+      return parsed;
+    } catch {
+      return defaultValue;
+    }
+  },
+  set: (key, value) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.error('Storage error:', e);
+    }
+  }
+};
 
 export default function App() {
   // ... (state remains same)
@@ -87,7 +108,7 @@ export default function App() {
             className="notification-slide clean-card rounded-2xl p-4 flex items-center gap-3 pointer-events-auto"
             style={{ borderLeft: `4px solid ${notif.color}` }}
           >
-            <BellRing size={20} style={{ color: notif.color }} className="flex-shrink-0" />
+            <Bell size={20} style={{ color: notif.color }} className="flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate text-slate-900">{notif.title}</p>
               <p className="text-sm text-slate-500 truncate">{notif.message}</p>
