@@ -335,12 +335,36 @@ export default function App() {
       {/* ... (Notifications and Install Banner remain same) */}
 
       <div className="max-w-7xl mx-auto w-full">
-        {/* ... (Header remains same) */}
+        {/* 헤더 */}
+        <div className="flex items-center justify-between mb-8 px-2 pt-2">
+          <h1 className="title-font text-3xl font-bold text-slate-900">
+            {currentDate.getFullYear()}년 {monthNames[currentDate.getMonth()]}
+          </h1>
+          <div className="flex gap-2">
+            <button onClick={prevMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600">
+              <ChevronLeft size={24} />
+            </button>
+            <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600">
+              <ChevronRight size={24} />
+            </button>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 캘린더 (왼쪽/상단) */}
           <div className="lg:col-span-2 h-fit">
-            {/* ... (Day Headers remain same) */}
+            {/* 요일 헤더 */}
+            <div className="grid grid-cols-7 gap-1 mb-4">
+              {dayNames.map((day, i) => (
+                <div
+                  key={day}
+                  className={`text-center text-sm font-medium ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'
+                    }`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
 
             {/* 캘린더 그리드 */}
             <div className="grid grid-cols-7 gap-1 md:gap-2">
@@ -421,9 +445,147 @@ export default function App() {
 
           {/* 사이드바 (오른쪽/하단) */}
           <div className="space-y-6">
-            {/* ... (Selected Date Events remain same) */}
+            {/* 선택된 날짜의 일정 */}
+            <div className="clean-card rounded-3xl p-4 md:p-6 h-fit sticky top-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="title-font text-xl font-semibold flex items-center gap-2 text-slate-900">
+                  <Calendar size={20} className="text-indigo-400" />
+                  {displayDate}
+                </h3>
+                <button
+                  onClick={() => {
+                    setEditingEvent(null);
+                    setNewEvent({
+                      title: '',
+                      date: selectedDate || formatTodayDate(),
+                      time: '',
+                      categoryId: categories[0]?.id || 1,
+                      reminders: [],
+                      description: ''
+                    });
+                    setShowEventModal(true);
+                  }}
+                  className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
 
-            {/* ... (Category Manager remains same) */}
+              <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                {displayEvents.map(event => {
+                  const category = categories.find(c => c.id === event.categoryId);
+                  return (
+                    <div
+                      key={event.id}
+                      className="clean-card clean-hover rounded-xl p-4 border-l-4 transition-colors group"
+                      style={{ borderLeftColor: category?.color || '#BFDBFE' }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium truncate text-lg text-slate-900">{event.title}</h4>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
+                            <Clock size={14} />
+                            <span>{event.time || '하루 종일'}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-3 flex-wrap">
+                            <span
+                              className="text-xs px-2.5 py-1 rounded-full font-medium"
+                              style={{ backgroundColor: `${category?.color}40`, color: '#1E293B' }}
+                            >
+                              {category?.name}
+                            </span>
+                            {event.reminders.length > 0 && (
+                              <span className="flex items-center gap-1 text-xs text-slate-400">
+                                <Bell size={12} />
+                                {event.reminders.length}개
+                              </span>
+                            )}
+                          </div>
+                          {event.description && (
+                            <p className="text-sm text-slate-500 mt-3 line-clamp-2 leading-relaxed">{event.description}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleEditEvent(event)}
+                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEvent(event.id)}
+                            className="p-2 hover:bg-red-50 rounded-lg text-red-400"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {displayEvents.length === 0 && (
+                  <div className="text-center py-12 text-slate-500">
+                    <Calendar size={48} className="mx-auto mb-4 opacity-20" />
+                    <p className="text-lg">일정이 없습니다</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 카테고리 관리 (데스크탑) */}
+            <div className="hidden md:block clean-card rounded-3xl p-6">
+              <h3 className="title-font text-lg font-semibold mb-4 text-slate-900 flex items-center gap-2">
+                <Tag size={20} className="text-indigo-400" />
+                카테고리 관리
+              </h3>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategory.name}
+                    onChange={e => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                    className="flex-1 px-3 py-2 text-sm"
+                    placeholder="새 카테고리"
+                  />
+                  <input
+                    type="color"
+                    value={newCategory.color}
+                    onChange={e => setNewCategory(prev => ({ ...prev, color: e.target.value }))}
+                    className="w-10 h-10 rounded-xl p-1 cursor-pointer bg-white border border-slate-200"
+                  />
+                  <button
+                    onClick={handleAddCategory}
+                    className="px-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl transition-colors"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
+                  {categories.map(cat => (
+                    <div
+                      key={cat.id}
+                      className="flex items-center justify-between p-2 rounded-xl border border-slate-100 bg-slate-50 group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        <span className="text-sm font-medium text-slate-700">{cat.name}</span>
+                      </div>
+                      {categories.length > 1 && (
+                        <button
+                          onClick={() => handleDeleteCategory(cat.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             {/* 알림 설정 (데스크탑) */}
             <div className="hidden md:block clean-card rounded-3xl p-6">
@@ -479,16 +641,255 @@ export default function App() {
               </div>
             </div>
 
-            {/* ... (Upcoming Events remain same) */}
+            {/* 다가오는 일정 */}
+            {events.filter(e => new Date(`${e.date}T${e.time}`) >= new Date()).length > 0 && (
+              <div className="clean-card rounded-3xl p-4 md:p-6">
+                <h3 className="title-font text-lg font-semibold mb-4 text-slate-900">다가오는 일정</h3>
+                <div className="space-y-2">
+                  {events
+                    .filter(e => new Date(`${e.date}T${e.time}`) >= new Date())
+                    .sort((a, b) => new Date(`${a.date}T${b.time}`) - new Date(`${b.date}T${b.time}`))
+                    .slice(0, 3)
+                    .map(event => {
+                      const category = categories.find(c => c.id === event.categoryId);
+                      return (
+                        <div
+                          key={event.id}
+                          className="clean-card clean-hover rounded-xl p-3 flex items-center gap-3 cursor-pointer"
+                          onClick={() => {
+                            setSelectedDate(event.date);
+                            const [year, month] = event.date.split('-');
+                            setCurrentDate(new Date(parseInt(year), parseInt(month) - 1));
+                          }}
+                        >
+                          <div
+                            className="w-1.5 h-8 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: category?.color }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium truncate text-slate-900">{event.title}</h4>
+                            <p className="text-xs text-slate-500">{event.date} {event.time || '하루 종일'}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ... (Bottom Nav remains same) */}
+      {/* 하단 네비게이션 바 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-2 pb-6 md:pb-2 z-40 flex justify-around items-center md:hidden">
+        <button className="p-3 text-indigo-500 flex flex-col items-center gap-1">
+          <Calendar size={24} />
+          <span className="text-[10px] font-medium">캘린더</span>
+        </button>
+        <button
+          onClick={() => setShowCategoryModal(true)}
+          className="p-3 text-slate-400 hover:text-indigo-500 flex flex-col items-center gap-1 transition-colors"
+        >
+          <Tag size={24} />
+          <span className="text-[10px] font-medium">카테고리</span>
+        </button>
+        <button
+          onClick={() => setShowReminderModal(true)}
+          className="p-3 text-slate-400 hover:text-indigo-500 flex flex-col items-center gap-1 transition-colors"
+        >
+          <Bell size={24} />
+          <span className="text-[10px] font-medium">설정</span>
+        </button>
+      </div>
 
-      {/* ... (Event Modal remains same) */}
+      {/* 일정 추가/수정 모달 */}
+      {showEventModal && (
+        <div
+          className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-end md:items-center justify-center z-50"
+          onClick={() => setShowEventModal(false)}
+        >
+          <div
+            className="modal-enter bg-white rounded-t-3xl md:rounded-3xl p-6 w-full md:max-w-md max-h-[85vh] overflow-y-auto shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="title-font text-xl font-semibold text-slate-900">
+                {editingEvent ? '일정 수정' : '새 일정'}
+              </h3>
+              <button
+                onClick={() => setShowEventModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-400"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-      {/* ... (Category Modal remains same) */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-500 mb-2">제목</label>
+                <input
+                  type="text"
+                  value={newEvent.title}
+                  onChange={e => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-4 py-3"
+                  placeholder="일정 제목"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-slate-500 mb-2">날짜</label>
+                  <input
+                    type="date"
+                    value={newEvent.date}
+                    onChange={e => setNewEvent(prev => ({ ...prev, date: e.target.value }))}
+                    className="w-full px-4 py-3"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-500 mb-2">시간</label>
+                  <input
+                    type="time"
+                    value={newEvent.time}
+                    onChange={e => setNewEvent(prev => ({ ...prev, time: e.target.value }))}
+                    className="w-full px-4 py-3"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-500 mb-2">카테고리</label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setNewEvent(prev => ({ ...prev, categoryId: cat.id }))}
+                      className={`px-3 py-2 rounded-xl text-sm transition-all ${newEvent.categoryId === cat.id
+                        ? 'ring-2 ring-offset-2 ring-indigo-200'
+                        : 'opacity-70 hover:opacity-100'
+                        }`}
+                      style={{ backgroundColor: `${cat.color}40`, color: '#1E293B' }}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-500 mb-2">
+                  <Bell size={14} className="inline mr-1" />
+                  알림 설정
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {reminderOptions.map(option => (
+                    <button
+                      key={option.id}
+                      onClick={() => toggleReminder(option.id)}
+                      className={`px-3 py-2 rounded-xl text-sm transition-all border ${newEvent.reminders.includes(option.id)
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                    >
+                      {newEvent.reminders.includes(option.id) && <Check size={14} className="inline mr-1" />}
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-500 mb-2">메모</label>
+                <textarea
+                  value={newEvent.description}
+                  onChange={e => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-3 h-24 resize-none"
+                  placeholder="메모를 입력하세요"
+                />
+              </div>
+
+              <button
+                onClick={handleAddEvent}
+                className="w-full py-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-medium text-lg shadow-lg shadow-indigo-200 transition-all active:scale-95"
+              >
+                {editingEvent ? '수정 완료' : '일정 추가'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 카테고리 관리 모달 */}
+      {showCategoryModal && (
+        <div
+          className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-end md:items-center justify-center z-50"
+          onClick={() => setShowCategoryModal(false)}
+        >
+          <div
+            className="modal-enter bg-white rounded-t-3xl md:rounded-3xl p-6 w-full md:max-w-md shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="title-font text-xl font-semibold text-slate-900">카테고리 관리</h3>
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-400"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newCategory.name}
+                  onChange={e => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                  className="flex-1 px-4 py-3"
+                  placeholder="새 카테고리 이름"
+                />
+                <input
+                  type="color"
+                  value={newCategory.color}
+                  onChange={e => setNewCategory(prev => ({ ...prev, color: e.target.value }))}
+                  className="w-12 h-12 rounded-xl p-1 cursor-pointer bg-white border border-slate-200"
+                />
+                <button
+                  onClick={handleAddCategory}
+                  className="px-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-[40vh] overflow-y-auto custom-scrollbar pr-2">
+                {categories.map(cat => (
+                  <div
+                    key={cat.id}
+                    className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                      <span className="font-medium text-slate-700">{cat.name}</span>
+                    </div>
+                    {categories.length > 1 && (
+                      <button
+                        onClick={() => handleDeleteCategory(cat.id)}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 알림 설정 모달 */}
       {showReminderModal && (
