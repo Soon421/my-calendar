@@ -8,8 +8,9 @@ const defaultCategories = [
   { id: 4, name: '약속', color: '#F59E0B' },
 ];
 
-const reminderOptions = [
+const defaultReminderOptions = [
   { id: 'day', label: '하루 전', minutes: 1440 },
+  { id: '6hours', label: '6시간 전', minutes: 360 },
   { id: '5hours', label: '5시간 전', minutes: 300 },
   { id: '1hour', label: '1시간 전', minutes: 60 },
   { id: '10min', label: '10분 전', minutes: 10 },
@@ -39,8 +40,10 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [events, setEvents] = useState(() => storage.get('calendar-events', []));
   const [categories, setCategories] = useState(() => storage.get('calendar-categories', defaultCategories));
+  const [reminderOptions, setReminderOptions] = useState(() => storage.get('calendar-reminders', defaultReminderOptions));
   const [showEventModal, setShowEventModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showReminderModal, setShowReminderModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [notificationPermission, setNotificationPermission] = useState('default');
@@ -55,7 +58,7 @@ export default function App() {
     date: '',
     time: '',
     categoryId: 1,
-    reminders: ['1hour'],
+    reminders: [],
     description: ''
   });
 
@@ -72,6 +75,10 @@ export default function App() {
   useEffect(() => {
     storage.set('calendar-categories', categories);
   }, [categories]);
+
+  useEffect(() => {
+    storage.set('calendar-reminders', reminderOptions);
+  }, [reminderOptions]);
 
   useEffect(() => {
     storage.set('sent-reminders', sentReminders);
@@ -433,15 +440,13 @@ export default function App() {
             <p className="text-slate-400 text-sm mt-1">일정을 스마트하게 관리하세요</p>
           </div>
           <div className="flex gap-2">
-            {notificationPermission !== 'granted' && (
-              <button
-                onClick={requestNotificationPermission}
-                className="glass glass-hover rounded-xl p-3"
-                title="알림 허용"
-              >
-                <Bell size={18} className="text-yellow-400" />
-              </button>
-            )}
+            <button
+              onClick={() => setShowReminderModal(true)}
+              className="glass glass-hover rounded-xl p-3"
+              title="알림 설정"
+            >
+              <Bell size={18} />
+            </button>
             <button
               onClick={() => setShowCategoryModal(true)}
               className="glass glass-hover rounded-xl p-3"
@@ -456,7 +461,7 @@ export default function App() {
                   date: selectedDate || formatTodayDate(),
                   time: '',
                   categoryId: categories[0]?.id || 1,
-                  reminders: ['1hour'],
+                  reminders: [],
                   description: ''
                 });
                 setShowEventModal(true);
@@ -499,7 +504,7 @@ export default function App() {
           {/* 캘린더 그리드 */}
           <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: startingDay }).map((_, i) => (
-              <div key={`empty-${i}`} className="aspect-square" />
+              <div key={`empty-${i}`} className="min-h-[100px] md:min-h-[120px]" />
             ))}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
@@ -511,12 +516,12 @@ export default function App() {
                 <button
                   key={day}
                   onClick={() => handleDateClick(day)}
-                  className={`day-cell aspect-square rounded-xl flex flex-col items-center justify-center relative p-1
+                  className={`day-cell min-h-[100px] md:min-h-[120px] rounded-xl flex flex-col items-center relative p-1 border border-white/5
                     ${isToday(day) ? 'bg-gradient-to-br from-indigo-500 to-purple-500 glow' : 'glass glass-hover'}
                     ${isSelected && !isToday(day) ? 'ring-2 ring-indigo-400' : ''}
                   `}
                 >
-                  <span className={`text-sm font-medium ${isToday(day) ? 'text-white' :
+                  <span className={`text-sm md:text-base font-medium mb-1 ${isToday(day) ? 'text-white' :
                     dayOfWeek === 0 ? 'text-red-400' :
                       dayOfWeek === 6 ? 'text-blue-400' : ''
                     }`}>
@@ -818,11 +823,11 @@ export default function App() {
       {/* 카테고리 관리 모달 */}
       {showCategoryModal && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-filter backdrop-blur-sm flex items-end md:items-center justify-center z-50"
+          className="fixed inset-0 bg-black/70 backdrop-filter backdrop-blur-sm flex items-center justify-center z-50"
           onClick={() => setShowCategoryModal(false)}
         >
           <div
-            className="modal-enter glass rounded-t-3xl md:rounded-3xl p-6 w-full md:max-w-md max-h-[85vh] overflow-y-auto"
+            className="modal-enter glass rounded-3xl p-6 w-full max-w-sm mx-4"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
