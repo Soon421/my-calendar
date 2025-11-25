@@ -106,17 +106,19 @@ export default function App() {
 
               // Service Worker Notification (Mobile/Desktop PWA Support)
               if (Notification.permission === 'granted') {
-                if (navigator.serviceWorker) {
+                // Check if SW is ready AND controlling the page
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
                   navigator.serviceWorker.ready.then(registration => {
                     registration.showNotification(event.title, {
                       body: option.label + ' 알림',
-                      icon: '/pwa-192x192.png', // Make sure this icon exists
+                      icon: '/pwa-192x192.png',
                       badge: '/pwa-192x192.png',
                       vibrate: [100, 50, 100],
                       data: { url: '/' }
                     });
                   });
                 } else {
+                  // Fallback for Desktop Web (No SW or Dev mode)
                   new Notification(event.title, { body: option.label + ' 알림' });
                 }
               }
@@ -436,17 +438,17 @@ export default function App() {
                                   e.stopPropagation();
                                   handleEditEvent(event);
                                 }}
-                                className="w-full h-6 md:h-6 rounded px-1.5 flex items-center overflow-hidden cursor-move hover:opacity-80 transition-opacity touch-none" // touch-none으로 브라우저 기본 동작 방지
+                                className="w-full h-4 md:h-5 rounded px-1.5 flex items-center overflow-hidden cursor-move hover:opacity-80 transition-opacity touch-none" // touch-none으로 브라우저 기본 동작 방지
                                 style={{ backgroundColor: category?.color || '#BFDBFE' }}
                               >
-                                <span className="text-[10px] md:text-xs text-slate-700 truncate w-full font-medium leading-none pointer-events-none">
+                                <span className="text-[10px] text-slate-700 truncate w-full font-medium leading-none pointer-events-none">
                                   {event.title}
                                 </span>
                               </div>
                             );
                           })}
                         {dayEvents.length > 4 && (
-                          <div className="text-[10px] md:text-xs text-slate-400 text-center leading-none pt-1">
+                          <div className="text-[10px] text-slate-400 text-center leading-none pt-0.5">
                             +{dayEvents.length - 4}개
                           </div>
                         )}
@@ -461,10 +463,10 @@ export default function App() {
           {/* 사이드바 (오른쪽/하단) */}
           <div className="space-y-6">
             {/* 선택된 날짜의 일정 */}
-            <div className="clean-card rounded-3xl p-4 md:p-6 h-fit sticky top-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="title-font text-xl font-semibold flex items-center gap-2 text-slate-900">
-                  <Calendar size={20} className="text-indigo-400" />
+            <div className="clean-card rounded-3xl p-4 h-fit sticky top-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="title-font text-lg font-semibold flex items-center gap-2 text-slate-900">
+                  <Calendar size={18} className="text-indigo-400" />
                   {displayDate}
                 </h3>
                 <button
@@ -480,58 +482,58 @@ export default function App() {
                     });
                     setShowEventModal(true);
                   }}
-                  className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors"
+                  className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
                 >
-                  <Plus size={20} />
+                  <Plus size={18} />
                 </button>
               </div>
 
-              <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
                 {displayEvents.map(event => {
                   const category = categories.find(c => c.id === event.categoryId);
                   return (
                     <div
                       key={event.id}
-                      className="clean-card clean-hover rounded-xl p-4 border-l-4 transition-colors group"
+                      className="clean-card clean-hover rounded-xl p-3 border-l-4 transition-colors group"
                       style={{ borderLeftColor: category?.color || '#BFDBFE' }}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium truncate text-lg text-slate-900">{event.title}</h4>
-                          <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
-                            <Clock size={14} />
+                          <h4 className="font-medium truncate text-base text-slate-900">{event.title}</h4>
+                          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                            <Clock size={12} />
                             <span>{event.time || '하루 종일'}</span>
                           </div>
-                          <div className="flex items-center gap-2 mt-3 flex-wrap">
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <span
-                              className="text-xs px-2.5 py-1 rounded-full font-medium"
+                              className="text-[10px] px-2 py-0.5 rounded-full font-medium"
                               style={{ backgroundColor: `${category?.color}40`, color: '#1E293B' }}
                             >
                               {category?.name}
                             </span>
                             {event.reminders.length > 0 && (
-                              <span className="flex items-center gap-1 text-xs text-slate-400">
-                                <Bell size={12} />
+                              <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                                <Bell size={10} />
                                 {event.reminders.length}개
                               </span>
                             )}
                           </div>
                           {event.description && (
-                            <p className="text-sm text-slate-500 mt-3 line-clamp-2 leading-relaxed">{event.description}</p>
+                            <p className="text-xs text-slate-500 mt-2 line-clamp-2 leading-relaxed">{event.description}</p>
                           )}
                         </div>
                         <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => handleEditEvent(event)}
-                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
                           >
-                            <Edit2 size={16} />
+                            <Edit2 size={14} />
                           </button>
                           <button
                             onClick={() => handleDeleteEvent(event.id)}
-                            className="p-2 hover:bg-red-50 rounded-lg text-red-400"
+                            className="p-1.5 hover:bg-red-50 rounded-lg text-red-400"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
@@ -539,9 +541,9 @@ export default function App() {
                   );
                 })}
                 {displayEvents.length === 0 && (
-                  <div className="text-center py-12 text-slate-500">
-                    <Calendar size={48} className="mx-auto mb-4 opacity-20" />
-                    <p className="text-lg">일정이 없습니다</p>
+                  <div className="text-center py-8 text-slate-500">
+                    <Calendar size={32} className="mx-auto mb-2 opacity-20" />
+                    <p className="text-sm">일정이 없습니다</p>
                   </div>
                 )}
               </div>
